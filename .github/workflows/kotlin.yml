@@ -1,0 +1,41 @@
+name: Kotlin
+
+env:
+  SRC_DIR: 'xdl_kt'
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "xdl_kt/**"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "xdl_kt/**"
+
+jobs:
+  gradle:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        java: [11,17]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ env.SRC_DIR }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-java@v3
+      with:
+        distribution: temurin
+        java-version: ${{ matrix.java }}
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+    
+    - name: Execute Gradle build
+      run: ./gradlew build
+    
+    - name: Execute Gradle tests
+      run: ./gradlew test
