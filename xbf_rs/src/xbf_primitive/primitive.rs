@@ -148,7 +148,7 @@ impl_NativeToXbfPrimitive!(Vec<u8>, Bytes);
 impl_NativeToXbfPrimitive!(String, String);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{XbfMetadata, XbfType};
     use std::io::Cursor;

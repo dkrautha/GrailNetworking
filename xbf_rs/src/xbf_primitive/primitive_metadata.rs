@@ -87,7 +87,7 @@ impl From<&XbfPrimitive> for XbfPrimitiveMetadata {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::XbfMetadata;
     use std::io::Cursor;

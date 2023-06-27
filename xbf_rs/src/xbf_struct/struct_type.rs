@@ -41,7 +41,7 @@ impl XbfStruct {
 impl XbfTypeUpcast for XbfStruct {}
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{XbfMetadataUpcast, XbfPrimitive, XbfPrimitiveMetadata, XbfVec, XbfVecMetadata};
     use std::io::Cursor;

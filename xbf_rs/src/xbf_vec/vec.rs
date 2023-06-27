@@ -56,7 +56,7 @@ pub struct ElementsNotHomogenousError;
 impl XbfTypeUpcast for XbfVec {}
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         xbf_primitive::{XbfPrimitive, XbfPrimitiveMetadata},
