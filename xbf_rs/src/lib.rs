@@ -4,11 +4,12 @@
 
 mod base_metadata;
 mod base_type;
-mod prelude;
 mod util;
 mod xbf_primitive;
 mod xbf_struct;
 mod xbf_vec;
+
+pub mod prelude;
 
 pub use base_metadata::*;
 pub use base_type::*;
