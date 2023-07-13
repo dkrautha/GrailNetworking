@@ -287,8 +287,10 @@ impl StructFieldMismatchError {
         expected_field_type: &XbfMetadata,
         actual_field_type: &XbfMetadata,
     ) -> StructFieldMismatchError {
-        let s = format!("Provided value for field {field_name} is of type {actual_field_type:?}, expected {expected_field_type:?}");
-        StructFieldMismatchError(s)
+        StructFieldMismatchError(format!(
+            "Provided value for field {field_name} is of \
+            type {actual_field_type:?}, expected {expected_field_type:?}"
+        ))
     }
 }
 
@@ -307,7 +309,7 @@ mod test {
     use std::io::Cursor;
 
     #[test]
-    fn test_struct_new_works() {
+    fn struct_new_works() {
         let name = "test_struct";
         let field1_name = "a";
         let field2_name = "b";
@@ -333,16 +335,21 @@ mod test {
                 XbfPrimitive::I32(42).into_base_type(),
                 XbfPrimitive::U64(69).into_base_type(),
             ],
+        )
+        .expect("a valid struct");
+
+        assert_eq!(
+            with_correct_fields.get(field1_name),
+            Some(&XbfPrimitive::I32(42).into())
         );
-
-        assert!(with_correct_fields.is_ok());
-        with_correct_fields.expect("a valid struct");
-
-        // TODO: accessor methods to test the contents of what's in the struct
+        assert_eq!(
+            with_correct_fields.get(field2_name),
+            Some(&XbfPrimitive::U64(69).into())
+        );
     }
 
     #[test]
-    fn test_struct_new_failure_works() {
+    fn struct_new_failure_works() {
         let name = "test_struct";
         let field1_name = "a";
         let field2_name = "b";
@@ -370,7 +377,6 @@ mod test {
             ],
         );
 
-        assert!(with_wrong_field1_type.is_err());
         assert_eq!(
             with_wrong_field1_type.unwrap_err().to_string(),
             StructFieldMismatchError::new(
@@ -383,7 +389,7 @@ mod test {
     }
 
     #[test]
-    fn test_struct_new_unchecked_works() {
+    fn struct_new_unchecked_works() {
         let name = "test_struct";
         let field1_name = "a";
         let field2_name = "b";
@@ -403,7 +409,7 @@ mod test {
         )
         .expect("a valid struct metadata");
 
-        let _blatantly_wrong_fields = XbfStruct::new_unchecked(
+        let blatantly_wrong_fields = XbfStruct::new_unchecked(
             metadata,
             vec![
                 XbfPrimitive::I32(42).into_base_type(),
@@ -411,11 +417,18 @@ mod test {
             ],
         );
 
-        // TODO: accessor methods to test the contents of what's in the struct
+        assert_eq!(
+            blatantly_wrong_fields.get("a"),
+            Some(&XbfPrimitive::I32(42).into())
+        );
+        assert_eq!(
+            blatantly_wrong_fields.get("b"),
+            Some(&XbfPrimitive::U64(69).into())
+        )
     }
 
     #[test]
-    fn test_struct_serde_works() {
+    fn struct_serde_works() {
         let primitive_metadata = XbfMetadata::Primitive(XbfPrimitiveMetadata::I32);
         let vec_metadata = XbfMetadata::Vec(XbfVecMetadata::new(XbfPrimitiveMetadata::I32.into()));
         let inner_struct_metadata = XbfStructMetadata::new(

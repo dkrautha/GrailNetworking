@@ -334,6 +334,44 @@ mod test {
     use std::io::Cursor;
 
     #[test]
+    fn metadata_new_works() {
+        let metadata = XbfStructMetadata::new(
+            "test".to_string(),
+            vec![(
+                "a".to_string(),
+                XbfMetadata::Primitive(XbfPrimitiveMetadata::I32),
+            )],
+        )
+        .expect("a valid struct metadata");
+
+        assert_eq!(metadata.name(), "test");
+        assert_eq!(
+            metadata.get_field_type("a"),
+            Some(&XbfMetadata::Primitive(XbfPrimitiveMetadata::I32))
+        );
+    }
+
+    #[test]
+    fn metadata_new_failure_works() {
+        let dup_field_name = "a";
+        let type1 = XbfMetadata::Primitive(XbfPrimitiveMetadata::I32);
+        let type2 = XbfMetadata::Primitive(XbfPrimitiveMetadata::String);
+        let metadata = XbfStructMetadata::new(
+            "test".to_string(),
+            vec![
+                (dup_field_name.to_string(), type1.clone()),
+                (dup_field_name.to_string(), type2.clone()),
+            ],
+        )
+        .expect_err("an invalid struct");
+
+        assert_eq!(
+            metadata.to_string(),
+            format!("Duplicate field: {dup_field_name}, type1: {type1:?}, type2: {type2:?}")
+        )
+    }
+
+    #[test]
     fn metadata_serde_works() {
         let metadata = XbfStructMetadata::new(
             "test".to_string(),
