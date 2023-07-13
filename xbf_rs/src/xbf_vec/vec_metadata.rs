@@ -107,12 +107,12 @@ impl XbfMetadataUpcast for XbfVecMetadata {}
 
 impl From<&XbfVec> for XbfVecMetadata {
     fn from(value: &XbfVec) -> Self {
-        Self::from_boxed_type(value.metadata.inner_type.clone())
+        value.get_metadata()
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use io::Cursor;
 

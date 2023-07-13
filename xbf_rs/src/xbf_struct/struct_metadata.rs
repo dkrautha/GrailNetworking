@@ -328,7 +328,7 @@ impl Display for StructMetadataDuplicateFieldError {
 impl Error for StructMetadataDuplicateFieldError {}
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{xbf_primitive::XbfPrimitiveMetadata, XbfVecMetadata};
     use std::io::Cursor;

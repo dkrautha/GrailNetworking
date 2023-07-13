@@ -185,7 +185,7 @@ pub struct ElementsNotHomogenousError;
 impl XbfTypeUpcast for XbfVec {}
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         xbf_primitive::{XbfPrimitive, XbfPrimitiveMetadata},
@@ -317,5 +317,19 @@ mod test {
             XbfType::deserialize_base_type(&(outer_vec_metadata.into()), &mut reader).unwrap();
 
         assert_eq!(vec, expected.into());
+    }
+
+    #[test]
+    fn upcast_works() {
+        let metadata = XbfVecMetadata::new(XbfPrimitiveMetadata::I32.into());
+        let vec = XbfVec::new(
+            metadata.clone(),
+            vec![XbfType::Primitive(XbfPrimitive::I32(42))],
+        )
+        .unwrap();
+        let vec_ref = &vec;
+
+        assert_eq!(XbfType::Vec(vec.clone()), vec_ref.to_base_type());
+        assert_eq!(XbfType::Vec(vec.clone()), vec.into_base_type());
     }
 }
