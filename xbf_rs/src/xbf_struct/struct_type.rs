@@ -78,11 +78,11 @@ impl XbfStruct {
         for ((name, expected_field_type), val) in metadata.fields.iter().zip(fields.iter()) {
             let actual_field_type = XbfMetadata::from(val);
             if *expected_field_type != actual_field_type {
-                return Err(StructFieldMismatchError::new(
+                Err(StructFieldMismatchError::new(
                     name,
                     expected_field_type,
                     &actual_field_type,
-                ));
+                ))?
             }
         }
         Ok(Self { metadata, fields })
@@ -274,6 +274,10 @@ impl XbfStruct {
 
 impl XbfTypeUpcast for XbfStruct {}
 
+/// Error type for creating [`XbfStruct`].
+///
+/// TODO: should this struct contain the values instead of a string, and allow the user to access
+/// them via functions or something like that?
 #[derive(Debug)]
 pub struct StructFieldMismatchError(String);
 

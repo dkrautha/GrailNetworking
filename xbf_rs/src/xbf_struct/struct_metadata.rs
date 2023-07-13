@@ -30,7 +30,7 @@ impl XbfStructMetadata {
     ///
     /// # Errors
     ///
-    /// If there are any duplicate field names, returns an [`StructMetadataDuplicateFieldError`].
+    /// If there are any duplicate field names, returns a [`StructMetadataDuplicateFieldError`].
     ///
     /// # Examples
     ///
@@ -80,11 +80,11 @@ impl XbfStructMetadata {
                     let (dup_name, dup_idx) = o.remove_entry();
                     let dup_field = &fields[dup_idx];
 
-                    return Err(StructMetadataDuplicateFieldError::new(
+                    Err(StructMetadataDuplicateFieldError::new(
                         &dup_name,
                         &dup_field.1,
                         &metadata,
-                    ));
+                    ))?
                 }
                 Entry::Vacant(v) => v.insert(idx),
             };
@@ -97,6 +97,35 @@ impl XbfStructMetadata {
         })
     }
 
+    /// Creates a new [`XbfStructMetadata`] without checking for duplicate field names.
+    ///
+    /// If you use this function you are proceeding at your own peril.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use xbf_rs::prelude::*;
+    ///
+    /// use xbf_rs::XbfStructMetadata;
+    /// use xbf_rs::XbfPrimitiveMetadata;
+    ///
+    /// let name = "test_struct";
+    /// let field1_name = "a";
+    /// let field1_type = XbfPrimitiveMetadata::I32.into_base_metadata();
+    /// let field2_name = "b";
+    /// let field2_type = XbfPrimitiveMetadata::U64.into_base_metadata();
+    ///
+    /// let metadata = XbfStructMetadata::new_unchecked(
+    ///   name.to_string(),
+    ///   vec![
+    ///     (field1_name.to_string(), field1_type.clone()),
+    ///     (field2_name.to_string(), field2_type.clone()),
+    ///   ],
+    /// );
+    ///
+    /// assert_eq!(metadata.name(), name);
+    /// assert_eq!(metadata.get_field_type(field1_name), Some(&field1_type));
+    /// assert_eq!(metadata.get_field_type(field2_name), Some(&field2_type));
+    /// ```
     pub fn new_unchecked(name: String, fields: Vec<(String, XbfMetadata)>) -> Self {
         let fields_lookup = fields
             .iter()
@@ -111,10 +140,52 @@ impl XbfStructMetadata {
         }
     }
 
+    /// Returns the name of the struct.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use xbf_rs::prelude::*;
+    ///
+    /// use xbf_rs::XbfStructMetadata;
+    /// use xbf_rs::XbfPrimitiveMetadata;
+    ///
+    /// let name = "test_struct";
+    ///
+    /// let metadata = XbfStructMetadata::new_unchecked(
+    ///   name.to_string(),
+    ///   vec![],
+    /// );
+    ///
+    /// assert_eq!(metadata.name(), name);
+    /// ```
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns the metadata of a field if it exists, otherwise returns `None`.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use xbf_rs::prelude::*;
+    ///
+    /// use xbf_rs::XbfStructMetadata;
+    /// use xbf_rs::XbfPrimitiveMetadata;
+    ///
+    /// let name = "test_struct";
+    /// let field1_name = "a";
+    /// let field1_type = XbfPrimitiveMetadata::I32.into_base_metadata();
+    ///
+    /// let metadata = XbfStructMetadata::new_unchecked(
+    ///   name.to_string(),
+    ///   vec![
+    ///     (field1_name.to_string(), field1_type.clone()),
+    ///   ],
+    /// );
+    ///
+    /// assert_eq!(metadata.name(), name);
+    /// assert_eq!(metadata.get_field_type(field1_name), Some(&field1_type));
+    /// assert_eq!(metadata.get_field_type("b"), None);
+    /// ```
     pub fn get_field_type(&self, field: &str) -> Option<&XbfMetadata> {
         self.get_field_index(field).map(|i| &self.fields[*i].1)
     }
@@ -234,6 +305,9 @@ impl From<&XbfStruct> for XbfStructMetadata {
     }
 }
 
+/// Error type for creating [`XbfStructMetadata`].
+///
+/// TODO: similar to [`StructFieldMismatchError`] should this contain the actual fields?
 #[derive(Debug)]
 pub struct StructMetadataDuplicateFieldError(String);
 
