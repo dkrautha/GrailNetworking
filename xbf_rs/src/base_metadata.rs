@@ -97,3 +97,23 @@ where
         self.into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn deserialize_unknown_discriminant_works() {
+        let bad_discriminant = 69u8;
+        let mut reader = Cursor::new(vec![bad_discriminant]);
+
+        let should_be_err = XbfMetadata::deserialize_base_metadata(&mut reader)
+            .expect_err("should have failed deserialization");
+
+        assert_eq!(
+            should_be_err.to_string(),
+            format!("Unknown metadata discriminant {bad_discriminant}")
+        )
+    }
+}

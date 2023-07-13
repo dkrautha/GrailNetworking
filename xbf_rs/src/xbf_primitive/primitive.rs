@@ -244,174 +244,166 @@ impl_NativeToXbfPrimitive!(Vec<u8>, Bytes);
 impl_NativeToXbfPrimitive!(String, String);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{XbfMetadata, XbfType};
     use std::io::Cursor;
 
-    macro_rules! serde_primitive_test {
-        ($xbf_type:tt, $test_num:expr) => {
-            let primitive = $test_num.to_xbf_primitive();
+    mod serde {
+        use super::*;
+
+        macro_rules! serde_primitive_test {
+            ($xbf_type:tt, $test_num:expr) => {
+                serde_primitive_test!($xbf_type, $test_num, $test_num);
+            };
+            ($xbf_type:tt, $test_val:expr, $to_bytes:expr) => {
+                let primitive = $test_val.to_xbf_primitive();
+                let mut writer = Vec::new();
+
+                primitive.serialize_primitive_type(&mut writer).unwrap();
+
+                let expected = $to_bytes.to_le_bytes();
+                assert_eq!(writer, expected);
+
+                let mut reader = Cursor::new(writer);
+
+                let metadata = XbfMetadata::Primitive(XbfPrimitiveMetadata::$xbf_type);
+                let expected = XbfType::Primitive($test_val.into_xbf_primitive());
+
+                let primitive = XbfType::deserialize_base_type(&metadata, &mut reader).unwrap();
+                assert_eq!(primitive, expected);
+            };
+        }
+
+        #[test]
+        fn bool_works() {
+            serde_primitive_test!(Bool, true, 1u8);
+            serde_primitive_test!(Bool, false, 0u8);
+        }
+
+        #[test]
+        fn unsigned_nums_works() {
+            serde_primitive_test!(U8, 42u8);
+            serde_primitive_test!(U16, 420u16);
+            serde_primitive_test!(U32, 100_000u32);
+            serde_primitive_test!(U64, 100_000_000u64);
+            serde_primitive_test!(U128, 18_446_744_073_709_551_617u128);
+        }
+
+        #[test]
+        fn u256_works() {
+            const TEST_NUM: [u64; 4] = [1, 2, 3, 4];
+            let primitive = XbfPrimitive::U256(TEST_NUM);
             let mut writer = Vec::new();
 
             primitive.serialize_primitive_type(&mut writer).unwrap();
 
-            let expected = $test_num.to_le_bytes();
+            let expected = TEST_NUM
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect::<Vec<_>>();
             assert_eq!(writer, expected);
 
             let mut reader = Cursor::new(writer);
+            let deserialized = XbfType::deserialize_base_type(
+                &XbfMetadata::Primitive(XbfPrimitiveMetadata::U256),
+                &mut reader,
+            )
+            .unwrap();
+            assert_eq!(deserialized, primitive.to_base_type());
+        }
 
-            let metadata = XbfMetadata::Primitive(XbfPrimitiveMetadata::$xbf_type);
-            let expected = XbfType::Primitive($test_num.into_xbf_primitive());
+        #[test]
+        fn signed_nums_works() {
+            serde_primitive_test!(I8, 42i8);
+            serde_primitive_test!(I16, 420i16);
+            serde_primitive_test!(I32, 100_000i32);
+            serde_primitive_test!(I64, 100_000_000i64);
+            serde_primitive_test!(I128, 18_446_744_073_709_551_617i128);
+        }
 
-            let primitive = XbfType::deserialize_base_type(&metadata, &mut reader).unwrap();
-            assert_eq!(primitive, expected);
-        };
-    }
+        #[test]
+        fn i256_works() {
+            const TEST_NUM: [u64; 4] = [1, 2, 3, 4];
+            let primitive = XbfPrimitive::I256(TEST_NUM);
+            let mut writer = Vec::new();
 
-    #[test]
-    fn bool_serde_works() {
-        let xbf_true = XbfPrimitive::Bool(true);
-        let xbf_false = XbfPrimitive::Bool(false);
-        let mut writer = Vec::new();
+            primitive.serialize_primitive_type(&mut writer).unwrap();
 
-        xbf_true.serialize_primitive_type(&mut writer).unwrap();
-        xbf_false.serialize_primitive_type(&mut writer).unwrap();
+            let expected = TEST_NUM
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect::<Vec<_>>();
+            assert_eq!(writer, expected);
 
-        assert_eq!(writer, vec![1, 0]);
+            let mut reader = Cursor::new(writer);
+            let deserialized = XbfType::deserialize_base_type(
+                &XbfMetadata::Primitive(XbfPrimitiveMetadata::I256),
+                &mut reader,
+            )
+            .unwrap();
+            assert_eq!(deserialized, primitive.to_base_type());
+        }
 
-        let mut reader = Cursor::new(writer);
-        let metadata = XbfMetadata::Primitive(XbfPrimitiveMetadata::Bool);
+        #[test]
+        fn floating_point_works() {
+            serde_primitive_test!(F32, 69.0f32);
+            serde_primitive_test!(F64, 69.0f64);
+        }
 
-        let true_type = XbfType::deserialize_base_type(&metadata, &mut reader).unwrap();
-        let false_type = XbfType::deserialize_base_type(&metadata, &mut reader).unwrap();
+        #[test]
+        fn string_works() {
+            let test_string = "hello world".to_string();
+            let primitive = XbfPrimitive::String(test_string.clone());
+            let mut writer = vec![];
 
-        assert_eq!(true_type, XbfType::Primitive(XbfPrimitive::Bool(true)));
-        assert_eq!(false_type, XbfType::Primitive(XbfPrimitive::Bool(false)));
-    }
+            primitive.serialize_primitive_type(&mut writer).unwrap();
 
-    #[test]
-    fn unsigned_nums_serde_works() {
-        serde_primitive_test!(U8, 42u8);
-        serde_primitive_test!(U16, 420u16);
-        serde_primitive_test!(U32, 100_000u32);
-        serde_primitive_test!(U64, 100_000_000u64);
-        serde_primitive_test!(U128, 18_446_744_073_709_551_617u128);
-    }
+            let mut expected_writer = vec![];
+            expected_writer.extend_from_slice(&(test_string.len() as u16).to_le_bytes());
+            expected_writer.extend_from_slice(test_string.as_bytes());
 
-    #[test]
-    fn u256_serde_works() {
-        const TEST_NUM: [u64; 4] = [1, 2, 3, 4];
-        let primitive = XbfPrimitive::U256(TEST_NUM);
-        let mut writer = Vec::new();
+            assert_eq!(writer, expected_writer);
 
-        primitive.serialize_primitive_type(&mut writer).unwrap();
+            let mut reader = Cursor::new(writer);
+            let deserialized = XbfType::deserialize_base_type(
+                &XbfMetadata::Primitive(XbfPrimitiveMetadata::String),
+                &mut reader,
+            )
+            .unwrap();
 
-        let expected = TEST_NUM
-            .iter()
-            .flat_map(|x| x.to_le_bytes())
-            .collect::<Vec<_>>();
-        assert_eq!(writer, expected);
+            assert_eq!(
+                deserialized,
+                XbfType::Primitive(XbfPrimitive::String(test_string))
+            );
+        }
 
-        let mut reader = Cursor::new(writer);
-        let deserialized = XbfType::deserialize_base_type(
-            &XbfMetadata::Primitive(XbfPrimitiveMetadata::U256),
-            &mut reader,
-        )
-        .unwrap();
-        assert_eq!(deserialized, primitive.to_base_type());
-    }
+        #[test]
+        fn bytes_works() {
+            let test_bytes = vec![1, 2, 3, 4];
+            let primitive = XbfPrimitive::Bytes(test_bytes.clone());
+            let mut writer = vec![];
 
-    #[test]
-    fn signed_nums_serde_works() {
-        serde_primitive_test!(I8, 42i8);
-        serde_primitive_test!(I16, 420i16);
-        serde_primitive_test!(I32, 100_000i32);
-        serde_primitive_test!(I64, 100_000_000i64);
-        serde_primitive_test!(I128, 18_446_744_073_709_551_617i128);
-    }
+            primitive.serialize_primitive_type(&mut writer).unwrap();
 
-    #[test]
-    fn i256_serde_works() {
-        const TEST_NUM: [u64; 4] = [1, 2, 3, 4];
-        let primitive = XbfPrimitive::I256(TEST_NUM);
-        let mut writer = Vec::new();
+            let mut expected = vec![];
+            expected.extend_from_slice(&(test_bytes.len() as u16).to_le_bytes());
+            expected.extend_from_slice(&test_bytes);
 
-        primitive.serialize_primitive_type(&mut writer).unwrap();
+            assert_eq!(writer, expected);
 
-        let expected = TEST_NUM
-            .iter()
-            .flat_map(|x| x.to_le_bytes())
-            .collect::<Vec<_>>();
-        assert_eq!(writer, expected);
+            let mut reader = Cursor::new(writer);
+            let deserialized = XbfType::deserialize_base_type(
+                &XbfMetadata::Primitive(XbfPrimitiveMetadata::Bytes),
+                &mut reader,
+            )
+            .unwrap();
 
-        let mut reader = Cursor::new(writer);
-        let deserialized = XbfType::deserialize_base_type(
-            &XbfMetadata::Primitive(XbfPrimitiveMetadata::I256),
-            &mut reader,
-        )
-        .unwrap();
-        assert_eq!(deserialized, primitive.to_base_type());
-    }
-
-    #[test]
-    fn floating_point_serde_works() {
-        serde_primitive_test!(F32, 69.0f32);
-        serde_primitive_test!(F64, 69.0f64);
-    }
-
-    #[test]
-    fn string_serde_works() {
-        let test_string = "hello world".to_string();
-        let primitive = XbfPrimitive::String(test_string.clone());
-        let mut writer = vec![];
-
-        primitive.serialize_primitive_type(&mut writer).unwrap();
-
-        let mut expected_writer = vec![];
-        expected_writer.extend_from_slice(&(test_string.len() as u16).to_le_bytes());
-        expected_writer.extend_from_slice(test_string.as_bytes());
-
-        assert_eq!(writer, expected_writer);
-
-        let mut reader = Cursor::new(writer);
-        let deserialized = XbfType::deserialize_base_type(
-            &XbfMetadata::Primitive(XbfPrimitiveMetadata::String),
-            &mut reader,
-        )
-        .unwrap();
-
-        assert_eq!(
-            deserialized,
-            XbfType::Primitive(XbfPrimitive::String(test_string))
-        );
-    }
-
-    #[test]
-    fn bytes_serde_works() {
-        let test_bytes = vec![1, 2, 3, 4];
-        let primitive = XbfPrimitive::Bytes(test_bytes.clone());
-        let mut writer = vec![];
-
-        primitive.serialize_primitive_type(&mut writer).unwrap();
-
-        let mut expected = vec![];
-        expected.extend_from_slice(&(test_bytes.len() as u16).to_le_bytes());
-        expected.extend_from_slice(&test_bytes);
-
-        assert_eq!(writer, expected);
-
-        let mut reader = Cursor::new(writer);
-        let deserialized = XbfType::deserialize_base_type(
-            &XbfMetadata::Primitive(XbfPrimitiveMetadata::Bytes),
-            &mut reader,
-        )
-        .unwrap();
-
-        assert_eq!(
-            deserialized,
-            XbfType::Primitive(XbfPrimitive::Bytes(test_bytes))
-        )
+            assert_eq!(
+                deserialized,
+                XbfType::Primitive(XbfPrimitive::Bytes(test_bytes))
+            )
+        }
     }
 
     #[test]
@@ -429,7 +421,7 @@ mod test {
         );
     }
 
-    macro_rules! primitive_from_native_test {
+    macro_rules! from_native_test {
         ($ty:ty, $xbf_type:tt, $test_num:expr) => {
             let value: $ty = $test_num;
             let primitive: XbfPrimitive = value.clone().into();
@@ -438,22 +430,23 @@ mod test {
     }
 
     #[test]
-    fn primitive_from_native_works() {
-        primitive_from_native_test!(bool, Bool, true);
-        primitive_from_native_test!(bool, Bool, false);
-        primitive_from_native_test!(u8, U8, 42);
-        primitive_from_native_test!(u16, U16, 42);
-        primitive_from_native_test!(u32, U32, 42);
-        primitive_from_native_test!(u64, U64, 42);
-        primitive_from_native_test!(u128, U128, 42);
-        primitive_from_native_test!(i8, I8, 42);
-        primitive_from_native_test!(i16, I16, 42);
-        primitive_from_native_test!(i32, I32, 42);
-        primitive_from_native_test!(i64, I64, 42);
-        primitive_from_native_test!(i128, I128, 42);
-        primitive_from_native_test!(f32, F32, 42.0);
-        primitive_from_native_test!(f64, F64, 42.0);
-        primitive_from_native_test!(String, String, "Hello World".to_string());
+    fn from_native_works() {
+        from_native_test!(bool, Bool, true);
+        from_native_test!(bool, Bool, false);
+        from_native_test!(u8, U8, 42);
+        from_native_test!(u16, U16, 42);
+        from_native_test!(u32, U32, 42);
+        from_native_test!(u64, U64, 42);
+        from_native_test!(u128, U128, 42);
+        from_native_test!(i8, I8, 42);
+        from_native_test!(i16, I16, 42);
+        from_native_test!(i32, I32, 42);
+        from_native_test!(i64, I64, 42);
+        from_native_test!(i128, I128, 42);
+        from_native_test!(f32, F32, 42.0);
+        from_native_test!(f64, F64, 42.0);
+        from_native_test!(Vec<u8>, Bytes, vec![1, 2, 3, 4]);
+        from_native_test!(String, String, "Hello World".to_string());
     }
 
     macro_rules! primitive_metadata_from_primitive_test {
@@ -461,7 +454,11 @@ mod test {
             assert_eq!(
                 XbfPrimitiveMetadata::from(&XbfPrimitive::$xbf_type($test_val)),
                 XbfPrimitiveMetadata::$xbf_type
-            )
+            );
+            assert_eq!(
+                XbfPrimitive::$xbf_type($test_val).get_metadata(),
+                XbfPrimitiveMetadata::$xbf_type
+            );
         };
     }
 
