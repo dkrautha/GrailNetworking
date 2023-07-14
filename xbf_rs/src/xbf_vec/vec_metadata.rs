@@ -112,7 +112,7 @@ impl From<&XbfVec> for XbfVecMetadata {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use io::Cursor;
 
