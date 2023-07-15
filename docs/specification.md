@@ -17,30 +17,7 @@ A homogenous list of values that has a known length.
 
 ### Struct
 
-An aggregate type containing a name as well as named fields.
-
-### Proposed Additional Inclusions
-
-This list can and should be expanded based on any new ideas we have. Possible
-candidates for inclusion include:
-
-#### Char
-
-This is not the same as a U8. Taking inspiration from Rust's `char` type, it's a
-single Unicode Scalar Value:
-<https://www.unicode.org/glossary/#unicode_scalar_value>.
-
-Whether this is better than just sending a String of length one is to be
-determined.
-
-#### Optional Types
-
-It may be useful to add support for a field or type that may specifically
-contain nothing. This avoids the need to have a Void or Null type, and encodes
-directly in the type system when something may not be present. This seems most
-useful as a field within a Struct or an element in a Vector. Optional types are
-something that takes inspiration from Rust's type system, but it is also present
-within C++ as std::optional.
+An aggregate type containing a name as well as named fields. A struct **may not** contain duplicate field names. Should a Struct be sent like this anyway, it should be considered malformed and not be constructed on the receiving end.
 
 ## Direct Representations
 
@@ -120,13 +97,6 @@ Here is the current list of primitives and their expected discriminant values:
 Strings should always be the final value in the list. The value given to strings
 is used by Vectors and Structs to determine what their discriminant value should
 be.
-
-REQUEST FOR REVIEW:
-
-Should we leave room between some of these discriminant numbers? For example,
-leave some space between U256 and I8? That way in the future if there's ever a
-need to expand new values can go in a place that logically makes sense, instead
-of being tacked on at the end.
 
 ### Vector
 
