@@ -4,7 +4,10 @@ use crate::{
     XbfMetadata, XbfStruct, VEC_METADATA_DISCRIMINANT,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{self, Read, Write};
+use std::{
+    io::{self, Read, Write},
+    rc::Rc,
+};
 
 /// The metadata discriminant for a Struct type.
 ///
@@ -16,7 +19,7 @@ pub const STRUCT_METADATA_DISCRIMINANT: u8 = VEC_METADATA_DISCRIMINANT + 1;
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct XbfStructMetadata {
     name: String,
-    pub(super) fields: Vec<(String, XbfMetadata)>,
+    pub(super) fields: Rc<[(String, XbfMetadata)]>,
 }
 
 impl XbfStructMetadata {
@@ -35,9 +38,9 @@ impl XbfStructMetadata {
     ///         ("b".to_string(), XbfPrimitiveMetadata::U64.into()),
     ///     ],
     /// );
-    ///
-    /// // TODO: accessors for the name and fields? with a similar api to a hashmap?
+    /// ```
     pub fn new(name: String, fields: Vec<(String, XbfMetadata)>) -> Self {
+        let fields = fields.into();
         Self { name, fields }
     }
 
@@ -140,6 +143,7 @@ impl XbfStructMetadata {
                 XbfMetadata::deserialize_base_metadata(reader)?,
             ))
         }
+        let fields = fields.into();
         Ok(XbfStructMetadata { name, fields })
     }
 }
@@ -178,7 +182,8 @@ mod test {
                         fields: vec![(
                             "d".to_string(),
                             XbfMetadata::Primitive(XbfPrimitiveMetadata::I32),
-                        )],
+                        )]
+                        .into(),
                     }),
                 ),
             ],
