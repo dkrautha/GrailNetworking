@@ -4,6 +4,7 @@ use std::{
     default::Default,
     io::{self, Read, Write},
     ops::Index,
+    rc::Rc,
     slice::{Iter, SliceIndex},
 };
 
@@ -11,7 +12,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct XbfVec {
     pub(crate) metadata: XbfVecMetadata,
-    elements: Vec<XbfType>,
+    elements: Rc<[XbfType]>,
 }
 
 impl XbfVec {
@@ -52,6 +53,8 @@ impl XbfVec {
         elements: Vec<XbfType>,
     ) -> Result<Self, ElementsNotHomogenousError> {
         let all_same_type = elements.iter().all(|x| *metadata.inner_type == x.into());
+        let elements = elements.into();
+        println!("{elements:?}");
         if all_same_type {
             Ok(Self { metadata, elements })
         } else {
@@ -61,7 +64,7 @@ impl XbfVec {
 
     /// Creates a new vector with the supplied metadata and elements without checking for homogeneity.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// use xbf_rs::XbfVec;
     /// use xbf_rs::XbfVecMetadata;
@@ -75,10 +78,12 @@ impl XbfVec {
     /// ];
     /// let vec = XbfVec::new_unchecked(metadata, data);
     ///
-    /// // TODO: create accessors for the elements / implement the [] operator.
-    /// // assert_ne!()
+    /// // This is not good!
+    /// assert_eq!(vec[0], XbfPrimitive::I32(42).into());
+    /// assert_eq!(vec[1], XbfPrimitive::String("Hello".to_string()).into());
     /// ```
     pub fn new_unchecked(metadata: XbfVecMetadata, elements: Vec<XbfType>) -> Self {
+        let elements = elements.into();
         Self { metadata, elements }
     }
 
@@ -88,7 +93,7 @@ impl XbfVec {
     /// metadata, convert this type to a [`XbfVecMetadata`] and call
     /// [`XbfVecMetadata::serialize_vec_metadata`].
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
     /// use xbf_rs::XbfVec;
@@ -265,16 +270,6 @@ impl<'a> IntoIterator for &'a XbfVec {
     }
 }
 
-impl IntoIterator for XbfVec {
-    type Item = XbfType;
-
-    type IntoIter = <Vec<XbfType> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.elements.into_iter()
-    }
-}
-
 impl<T> From<&[T]> for XbfVec
 where
     for<'a> XbfPrimitive: From<&'a T>,
@@ -308,11 +303,6 @@ where
         XbfVec::new_unchecked(metadata, elements)
     }
 }
-
-// TODO: asref for XbfVec?
-// TODO: borrow for XbfVec?
-// Borrow<T> has more requirements put on it than just asref, and I'm not sure if its possible to
-// satisfy those conditions, see https://doc.rust-lang.org/std/borrow/trait.Borrow.html
 
 /// Error type for [`XbfVec`]
 ///
@@ -520,19 +510,7 @@ mod test {
     }
 
     #[test]
-    fn into_iter_value_works() {
-        let x = XbfVec::from([1i32, 2, 4].as_slice());
-
-        for i in x.into_iter() {
-            assert!(matches!(i, XbfType::Primitive(XbfPrimitive::I32(_))));
-        }
-
-        // let _usable_after_loop = x;
-        // not usable after the loop because we moved!
-    }
-
-    #[test]
-    fn from_iterator_works() {
+    fn from_iterator_and_slice_works() {
         let a = vec![1i32, 2, 4];
         let x = XbfVec::from(a.as_slice());
 

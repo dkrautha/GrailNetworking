@@ -1,6 +1,9 @@
 use crate::{xbf_primitive::XbfPrimitiveMetadata, XbfMetadata, XbfMetadataUpcast, XbfVec};
 use byteorder::WriteBytesExt;
-use std::io::{self, Read, Write};
+use std::{
+    io::{self, Read, Write},
+    rc::Rc,
+};
 
 /// The metadata discriminant for a Vec type.
 ///
@@ -12,11 +15,9 @@ pub const VEC_METADATA_DISCRIMINANT: u8 = XbfPrimitiveMetadata::String as u8 + 1
 ///
 /// Internally the metadata is stored on the heap to avoid having a recursive, infinitely sized
 /// type on the stack.
-///
-/// TODO: accessor for the inner type?
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XbfVecMetadata {
-    pub(crate) inner_type: Box<XbfMetadata>,
+    pub(crate) inner_type: Rc<XbfMetadata>,
 }
 
 impl XbfVecMetadata {
@@ -36,24 +37,8 @@ impl XbfVecMetadata {
     /// ```
     pub fn new(inner_type: XbfMetadata) -> Self {
         Self {
-            inner_type: Box::new(inner_type),
+            inner_type: Rc::new(inner_type),
         }
-    }
-
-    /// Creates a new Vec metadata from an already allocated inner type.
-    ///
-    /// # Example
-    /// ```rust
-    /// use xbf_rs::XbfVecMetadata;
-    /// use xbf_rs::XbfMetadata;
-    /// use xbf_rs::XbfPrimitiveMetadata;
-    ///
-    /// let inner_type = XbfPrimitiveMetadata::I32.into();
-    /// let boxed_inner_type = Box::new(inner_type);
-    /// let metadata = XbfVecMetadata::from_boxed_type(boxed_inner_type);
-    /// ````
-    pub fn from_boxed_type(inner_type: Box<XbfMetadata>) -> Self {
-        Self { inner_type }
     }
 
     /// Serialize Vec metadata as defined by the XBF specification.
@@ -107,7 +92,9 @@ impl XbfMetadataUpcast for XbfVecMetadata {}
 
 impl From<&XbfVec> for XbfVecMetadata {
     fn from(value: &XbfVec) -> Self {
-        Self::from_boxed_type(value.metadata.inner_type.clone())
+        Self {
+            inner_type: value.metadata.inner_type.clone(),
+        }
     }
 }
 
@@ -120,9 +107,8 @@ mod test {
     fn primitive_metadata_serde_works() {
         let vec_i32_metadata =
             XbfVecMetadata::new(XbfMetadata::Primitive(XbfPrimitiveMetadata::I32));
-        let vec_string_metadata = XbfVecMetadata::from_boxed_type(Box::new(
-            XbfMetadata::Primitive(XbfPrimitiveMetadata::String),
-        ));
+        let vec_string_metadata =
+            XbfVecMetadata::new(XbfMetadata::Primitive(XbfPrimitiveMetadata::String));
         let mut writer = vec![];
 
         vec_i32_metadata
@@ -163,11 +149,8 @@ mod test {
 
     #[test]
     fn nested_vec_metadata_serialize_works() {
-        let vec_vec_i32_metadata = XbfVecMetadata {
-            inner_type: Box::new(XbfMetadata::Vec(XbfVecMetadata {
-                inner_type: Box::new(XbfMetadata::Primitive(XbfPrimitiveMetadata::I32)),
-            })),
-        };
+        let vec_i32_metadata = XbfVecMetadata::new(XbfPrimitiveMetadata::I32.into());
+        let vec_vec_i32_metadata = XbfVecMetadata::new(vec_i32_metadata.into());
         let mut writer = vec![];
 
         vec_vec_i32_metadata
